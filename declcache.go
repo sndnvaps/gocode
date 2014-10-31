@@ -199,9 +199,12 @@ func autobuild(p *build.Package) error {
 	}
 	pt := ps.ModTime()
 	fs, err := ioutil.ReadDir(p.Dir)
+	if err != nil {
+		return err
+	}
 	for _, f := range fs {
 		if f.IsDir() {
-			break
+			continue
 		}
 		if f.ModTime().After(pt) {
 			// Source file is newer than package file; rebuild.
@@ -257,17 +260,6 @@ func find_global_file(imp string, context build.Context) (string, bool) {
 		return "unsafe", true
 	}
 
-	p, err := context.Import(imp, "", build.AllowBinary)
-	if err == nil {
-		if g_config.Autobuild {
-			autobuild(p)
-		}
-		if file_exists(p.PkgObj) {
-			log_found_package_maybe(imp, p.PkgObj)
-			return p.PkgObj, true
-		}
-	}
-
 	pkgfile := fmt.Sprintf("%s.a", imp)
 
 	// if lib-path is defined, use it
@@ -285,6 +277,17 @@ func find_global_file(imp string, context build.Context) (string, bool) {
 				log_found_package_maybe(imp, pkg_path)
 				return pkg_path, true
 			}
+		}
+	}
+
+	p, err := context.Import(imp, "", build.AllowBinary|build.FindOnly)
+	if err == nil {
+		if g_config.Autobuild {
+			autobuild(p)
+		}
+		if file_exists(p.PkgObj) {
+			log_found_package_maybe(imp, p.PkgObj)
+			return p.PkgObj, true
 		}
 	}
 
